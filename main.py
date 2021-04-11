@@ -7,7 +7,7 @@ from threading import Thread
 TOKEN = input("Your token: ")
 max_message_speed = 0.2
 save_freq = 30
-banlist = ['bdiaq']
+banlist = ['bdiaq', 'Andrey', "Имя", "Лариса", "LexaHytenko"]
 
 white = (255, 174, 66)
 black = (0, 0, 0)
@@ -34,7 +34,20 @@ class Server(Thread):
 
         while True:
             try:
+                client, addr = self.s.accept()
 
+                clients.append((client, addr))
+
+            except socket.error:
+                pass
+
+            try:
+                for client, addr in clients:
+                    data = client.recv(16384).decode('utf-8')
+
+                    d = data.split('')
+            except socket.socket:
+                pass
 
 
 def saveMap():
@@ -75,6 +88,17 @@ class Renderer:
                     pygame.display.quit()
                     bot.stop_bot()
                     return
+                elif e.type == pygame.MOUSEBUTTONDOWN:
+                    pressed = pygame.mouse.get_pressed(3)
+                    clr = black
+                    if pressed[2]:
+                        clr = white
+
+                    x, y = pygame.mouse.get_pos()
+                    x = x // self.pixelsPerUnit - 1
+                    y = y // self.pixelsPerUnit - 1
+
+                    field[x, y] = clr
 
             self.sc.fill((0,0,0))
 
@@ -120,7 +144,7 @@ renderingThread = Renderer()
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
     string = """
-Холст отображается на стриме - https://www.twitch.tv/zelduv
+Холст отображается на стриме - https://youtu.be/839_T0T2N7o
 Размер поля - """ + str(width) + 'x' + str(height) + """ пикселей
 -------
 Доступные комманды
@@ -156,18 +180,21 @@ last_user_messages = {}
 
 
 @bot.message_handler(commands=['set', 'clr', 'clrfill', 'setfill', 'setcolor'])
-def echo_all(message: telebot.types.Message):
+def react(message: telebot.types.Message):
     global field
 
     msg = message.text.split(' ')
     try:
         user = message.from_user.username
+        name = message.from_user.first_name
+
+        print("Message", str(message.text), "by", str(message.from_user.first_name), '@' + str(message.from_user.username))
 
         if user not in last_user_messages:
             last_user_messages[user] = 0
 
         if time.time()-last_user_messages[user] > max_message_speed and\
-           user not in banlist:
+           user not in banlist and name not in banlist:
             x, y = int(msg[1]), int(msg[2])
             if 0 <= x < width and 0 <= y < height:
                 if msg[0] == '/clr':
@@ -187,12 +214,11 @@ def echo_all(message: telebot.types.Message):
                     r,g,b = clamp(int(msg[3]), 0, 255), clamp(int(msg[4]), 0, 255), clamp(int(msg[5]), 0, 255)
                     field[x, y] = (r, g, b)
 
-                print("Message", message.text, "by", message.from_user.first_name, '@'+message.from_user.username)
-
             last_user_messages[user] = time.time()
 
     except Exception as e:
-        print("Exception /set /clr -", e)
+        print("Exception react() ", e)
+        bot.reply_to(message, "Похоже, ты ввёл команду неправильно. Если думаешь что это баг, пиши @zvmine")
 
 
 def start():
